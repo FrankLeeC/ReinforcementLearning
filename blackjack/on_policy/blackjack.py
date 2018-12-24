@@ -190,7 +190,8 @@ def run():
         actions = episode.action()
         rewards = episode.reward()
         cache = set()
-        for i in range(l):
+        for j in range(l):
+            i = l - j - 1
             g = 0.9 * g + rewards[i]
             ps = states[i].player_sum()
             ds = states[i].dealer_showing()
@@ -199,7 +200,7 @@ def run():
             if key not in cache:
                 cache.add(key)
                 COUNT[ps-12][ds-2][u][actions[i]] += 1
-                Q[ps-12][ds-2][u][actions[i]] += (rewards[i] - Q[ps-12][ds-2][u][actions[i]]) / COUNT[ps-12][ds-2][u][actions[i]]
+                Q[ps-12][ds-2][u][actions[i]] += (g- Q[ps-12][ds-2][u][actions[i]]) / COUNT[ps-12][ds-2][u][actions[i]]
                 update_policy(ps, ds, u)
 
 

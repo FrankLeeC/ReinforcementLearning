@@ -154,7 +154,7 @@ def main():
     plt.legend(loc='lower right', frameon=False)
     plt.legend()
 
-    # plt.savefig('./bendit.png')
+    # plt.savefig('./bandit.png')
     plt.show(block=True)
 
 
