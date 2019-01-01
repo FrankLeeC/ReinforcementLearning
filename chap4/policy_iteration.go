@@ -67,7 +67,7 @@ func initPolicy() *[21][21]int {
 	return &policy
 }
 
-// poisson 计算泊松分布概率
+// poisson distribution
 // P(n) = lambda^n * e^{-lambda} / n!
 func poisson(lambda, n int) float64 {
 	r := 1
