@@ -148,15 +148,15 @@ func step(state *[2]int, action int) []*condition {
 	s1 := truncate(state[1] + action)
 	r0 := int(-2 * math.Abs(float64(action)))
 	m := make([]*condition, 0, 21*21*21*21)
-	for i1 := 0; i1 <= 20; i1++ { // request of first location
-		for j1 := 0; j1 <= 20; j1++ { // return of first location
-			for i2 := 0; i2 <= 20; i2++ { // request of second location
-				for j2 := 0; j2 <= 20; j2++ { // return of second location
-					s := &[2]int{truncate(s0 - i1 + j1), truncate(s1 - i2 + j2)}
-					r1 := int(math.Min(float64(i1), float64(s0+j1)))
-					r2 := int(math.Min(float64(i2), float64(s1+j2)))
+	for i1 := 0; i1 <= 20; i1++ { // return of first location
+		for j1 := 0; j1 <= truncate((s0 + i1)); j1++ { // request of first location
+			for i2 := 0; i2 <= 20; i2++ { // return of second location
+				for j2 := 0; j2 <= truncate((s1 + i2)); j2++ { // request of second location
+					s := &[2]int{truncate(s0 + i1 - j1), truncate(s1 + i2 - j2)}
+					r1 := int(math.Min(float64(j1), float64(s0+i1)))
+					r2 := int(math.Min(float64(j2), float64(s1+i2)))
 					r := float64(10*(r1+r2) + r0)
-					p := getPoissonProb(0, 0, i1) * getPoissonProb(0, 1, j1) * getPoissonProb(1, 0, i2) * getPoissonProb(1, 1, j2)
+					p := getPoissonProb(0, 0, j1) * getPoissonProb(0, 1, i1) * getPoissonProb(1, 0, j2) * getPoissonProb(1, 1, i2)
 					m = append(m, &condition{s, r, p})
 				}
 			}
@@ -242,7 +242,7 @@ func policyImprovement(value *[21][21]float64, policy *[21][21]int) bool {
 			current := time.Now()
 			cost := current.Sub(start)
 			start = current
-			fmt.Printf("%d changeds in policy_improvement cost: %f\n", c, cost.Seconds())
+			fmt.Printf("%d changes in policy_improvement cost: %f\n", c, cost.Seconds())
 		}
 
 	}
