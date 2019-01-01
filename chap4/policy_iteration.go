@@ -149,9 +149,9 @@ func step(state *[2]int, action int) []*condition {
 	r0 := int(-2 * math.Abs(float64(action)))
 	m := make([]*condition, 0, 21*21*21*21)
 	for i1 := 0; i1 <= 20; i1++ { // return of first location
-		for j1 := 0; j1 <= truncate((s0 + i1)); j1++ { // request of first location
+		for j1 := 0; j1 <= truncate((s0 + i1)); j1++ { // request of first location, no more than stock
 			for i2 := 0; i2 <= 20; i2++ { // return of second location
-				for j2 := 0; j2 <= truncate((s1 + i2)); j2++ { // request of second location
+				for j2 := 0; j2 <= truncate((s1 + i2)); j2++ { // request of second location, no more than stock
 					s := &[2]int{truncate(s0 + i1 - j1), truncate(s1 + i2 - j2)}
 					r1 := int(math.Min(float64(j1), float64(s0+i1)))
 					r2 := int(math.Min(float64(j2), float64(s1+i2)))
@@ -199,20 +199,6 @@ func policyEvaluation(value *[21][21]float64, policy *[21][21]int) {
 			break
 		}
 	}
-}
-
-func arrayEquals(a *[2]int, b *[2]int) bool {
-	for i := 0; i < 2; i++ {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-type ActVal struct {
-	action int
-	value  float64
 }
 
 func policyImprovement(value *[21][21]float64, policy *[21][21]int) bool {
