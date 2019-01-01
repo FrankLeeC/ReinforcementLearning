@@ -55,6 +55,7 @@ state is the number of cars at each location at the end of the day.
 actions are the net numbers of cars moved between the two locations.
 */
 
+// POISSONCACHE poisson distribution cache
 var POISSONCACHE [2][2][21]float64
 
 func initPolicy() *[21][21]int {
@@ -179,7 +180,7 @@ func policyEvaluation(value *[21][21]float64, policy *[21][21]int) {
 	c := 0
 	start := time.Now()
 	for {
-		c += 1
+		c++
 		m := 0.0
 		for i := 0; i < 21; i++ {
 			for j := 0; j < 21; j++ {
