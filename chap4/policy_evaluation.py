@@ -63,7 +63,8 @@ R = 'right'
 D = 'down'
 L = 'left'
 
-VALUE = np.random.rand(16)
+# VALUE = np.random.rand(16)
+VALUE = np.ones(16) * -10000
 VALUE[0] = 0.0
 VALUE[15] = 0.0
 

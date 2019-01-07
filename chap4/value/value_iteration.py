@@ -27,6 +27,7 @@ SOFTWARE.
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import copy
 
 
 '''
@@ -48,22 +49,21 @@ def reward(s):
     return 1.0
 
 def step(s, a, value):
-    return ph * (reward(s+a) + value[s+a]) + (1-ph) * (reward(s-a) + value[s-a])
+    gamma = 1.0
+    return ph * (reward(s+a) + gamma * value[s+a]) + (1-ph) * (reward(s-a) + gamma * value[s-a])
 
-def run():
+def run2():
     value = np.zeros(101)  # value is the probability of reaching goal in current state
     policy = np.zeros(99)
     epsilon = 1e-9
-    c = 0
     while True:
-        c += 1
         m = 0.0
         for j in range(99):
             i = j + 1
             oldv = value[i]
             actions = get_actions(i)
-            mv = 0.0
-            ma = 1
+            mv = float('-inf')
+            ma = 0
             for a in actions:
                 v = step(i, a, value)
                 if v > mv:
@@ -76,7 +76,34 @@ def run():
             break
     return value, policy
 
-def plot(value, policy):
+
+def run():
+    value = np.random.rand(101) - 1.0  # if value is initialized arbitrarily, it must be less than 0.0, because value is the probability of reaching goal in current state
+    value[0] = 0.0
+    value[100] = 0.0
+    policy = np.zeros(99)
+    epsilon = 1e-9
+    while True:
+        m = 0.0
+        for j in range(99):
+            i = j + 1
+            oldv = value[i]
+            actions = get_actions(i)
+            mv = float('-inf')
+            ma = 0
+            for a in actions:
+                v = step(i, a, value)
+                if v > mv:
+                    mv = v
+                    ma = a
+            policy[j] = ma
+            value[i] = mv
+            m = max(m, abs(mv-oldv))
+        if m < epsilon:
+            break
+    return value, policy
+
+def plot(value, policy, name):
     plt.figure(figsize=(10, 20))
 
     plt.subplot(2, 1, 1)
@@ -89,9 +116,11 @@ def plot(value, policy):
     plt.xlabel('Capital')
     plt.ylabel('Final policy (stake)')
 
-    plt.savefig('value_iteration.png')
+    plt.savefig(name)
     plt.close()
 
 if __name__ == "__main__":
     value, policy = run()
-    plot(value, policy)
+    plot(value, policy, 'value_iteration.png')
+    value, policy = run2()
+    plot(value, policy, 'value_iteration2.png')
