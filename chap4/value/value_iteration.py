@@ -27,7 +27,6 @@ SOFTWARE.
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-import copy
 
 
 '''
@@ -54,7 +53,7 @@ def step(s, a, value):
 
 
 def run3():
-    value = np.random.rand(101) * 2 - 1  # [-1, 1) arbitrarily
+    value = np.ones(101) * 100
     value[0] = 0.0
     value[100] = 0.0
     policy = np.ones(99, dtype=np.int)
@@ -80,7 +79,7 @@ def run3():
             ra = policy[j]
             for a in actions:
                 v = step(i, a, value)
-                if v >= mv:
+                if v >= mv and a != 0:
                     mv = v
                     ma = a
             if ra != ma:
@@ -112,7 +111,7 @@ def run2():
         ma = 0
         for a in get_actions(i):
             v = step(i, a, value)
-            if v >= mv:
+            if v >= mv and a != 0:
                 mv = v
                 ma = a
         policy[j] = ma
@@ -120,10 +119,10 @@ def run2():
 
 
 def run():
-    value = np.random.rand(101) - 1.0  # if value is initialized arbitrarily, it must be less than 0.0, because value is the probability of reaching goal in current state
+    value = np.random.rand(101) * -100  # arbitrarily but not bigger than 0
     value[0] = 0.0
     value[100] = 0.0
-    policy = np.zeros(99)
+    policy = np.ones(99, dtype=np.int)
     epsilon = 1e-9
     while True:
         m = 0.0
@@ -145,7 +144,7 @@ def run():
         ma = 0
         for a in get_actions(i):
             v = step(i, a, value)
-            if v >= mv:
+            if v >= mv and a != 0:
                 mv = v
                 ma = a
         policy[j] = ma
@@ -170,7 +169,9 @@ def plot(value, policy, name):
 if __name__ == "__main__":
     value, policy = run()
     plot(value, policy, 'value_iteration.png')
-    value2, policy = run2()
-    plot(value, policy, 'value_iteration2.png')
-    value3, policy = run3()
-    plot(value, policy, 'value_iteration3.png')
+
+    value2, policy2 = run2()
+    plot(value2, policy2, 'value_iteration2.png')
+
+    value3, policy3 = run3()
+    plot(value3, policy3, 'value_iteration3.png')
