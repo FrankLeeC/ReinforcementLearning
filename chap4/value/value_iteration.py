@@ -52,8 +52,44 @@ def step(s, a, value):
     gamma = 1.0
     return ph * (reward(s+a) + gamma * value[s+a]) + (1-ph) * (reward(s-a) + gamma * value[s-a])
 
+
+def run3():
+    value = np.random.rand(101) * 2 - 1  # [-1, 1) arbitrarily
+    value[0] = 0.0
+    value[100] = 0.0
+    policy = np.ones(99, dtype=np.int)
+    epsilon = 1e-9
+    run = True
+    while run:
+        run = False
+        while True:
+            m = 0.0
+            for j in range(99):
+                i = j + 1
+                a = policy[j]
+                oldv = value[i]
+                value[i] = step(i, a, value)
+                m = max(m, abs(value[i]-oldv))
+            if m < epsilon:
+                break
+        for j in range(99):
+            i = j + 1
+            actions = get_actions(i)
+            mv = float('-inf')
+            ma = 0
+            ra = policy[j]
+            for a in actions:
+                v = step(i, a, value)
+                if v >= mv:
+                    mv = v
+                    ma = a
+            if ra != ma:
+                run = True
+                policy[j] = ma
+    return value, policy
+
 def run2():
-    value = np.zeros(101)  # value is the probability of reaching goal in current state
+    value = np.zeros(101)
     policy = np.zeros(99)
     epsilon = 1e-9
     while True:
@@ -63,17 +99,23 @@ def run2():
             oldv = value[i]
             actions = get_actions(i)
             mv = float('-inf')
-            ma = 0
             for a in actions:
                 v = step(i, a, value)
-                if v > mv:
-                    mv = v
-                    ma = a
-            policy[j] = ma
+                mv = max(mv, v)
             value[i] = mv
             m = max(m, abs(mv-oldv))
         if m < epsilon:
             break
+    for j in range(99):
+        i = j + 1
+        mv = float('-inf')
+        ma = 0
+        for a in get_actions(i):
+            v = step(i, a, value)
+            if v >= mv:
+                mv = v
+                ma = a
+        policy[j] = ma
     return value, policy
 
 
@@ -90,17 +132,23 @@ def run():
             oldv = value[i]
             actions = get_actions(i)
             mv = float('-inf')
-            ma = 0
             for a in actions:
                 v = step(i, a, value)
-                if v > mv:
-                    mv = v
-                    ma = a
-            policy[j] = ma
+                mv = max(mv, v)
             value[i] = mv
             m = max(m, abs(mv-oldv))
         if m < epsilon:
             break
+    for j in range(99):
+        i = j + 1
+        mv = float('-inf')
+        ma = 0
+        for a in get_actions(i):
+            v = step(i, a, value)
+            if v >= mv:
+                mv = v
+                ma = a
+        policy[j] = ma
     return value, policy
 
 def plot(value, policy, name):
@@ -122,5 +170,7 @@ def plot(value, policy, name):
 if __name__ == "__main__":
     value, policy = run()
     plot(value, policy, 'value_iteration.png')
-    value, policy = run2()
+    value2, policy = run2()
     plot(value, policy, 'value_iteration2.png')
+    value3, policy = run3()
+    plot(value, policy, 'value_iteration3.png')
