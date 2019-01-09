@@ -12,12 +12,47 @@ cards = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 def hit():
     return random.choice(cards)
 
+class State:
 
-def usable_ace(s):
-    if s + 11 <= 21:
-        return True
-    return False
+    def __init__(self, player_sum, dealer_sum, usable_ace):
+        self.p = player_sum
+        self.d = dealer_sum
+        self.u = usable_ace
 
+    def player_sum(self):
+        return self.p
+
+    def dealer_sum(self):
+        return self.d
+
+    def usable_ace(self):
+        return self.u
+
+
+class Episode:
+
+    def __init__(self):
+        self.state_list = []
+        self.action_list = []
+        self.reward_list = []
+
+    def add_state(self, s):
+        self.state_list.append(s)
+
+    def add_action(self, a):
+        self.action_list.append(a)
+
+    def add_reward(self, r):
+        self.reward_list.append(r)
+
+    def states(self):
+        return self.state_list
+    
+    def actions(self):
+        return self.action_list
+
+    def rewards(self):
+        return self.reward_list
 
 def init_player():
     '''
@@ -29,7 +64,7 @@ def init_player():
     while s < 12:
         card = hit()
         if card == 1:
-            if usable_ace(s):
+            if s + 11 <= 21:
                 s += 11
                 usable = True
             else:
@@ -40,16 +75,14 @@ def init_player():
 
 
 def generate_episode():
+    episode = Episode()
     dealer = hit()
     dealer_usable_ace = False
     if dealer == 1:
         dealer = 11
         dealer_usable_ace = True
     s, player_usable = init_player()
-    states = list()
-    rewards = list()
-
-    states.append([s, dealer, player_usable])
+    episode.add_state(State(s, dealer, player_usable))
     done = False
     while s < 20:
         card = hit()
@@ -61,14 +94,14 @@ def generate_episode():
             if player_usable:
                 player_usable = False
                 s -= 10
-                rewards.append(0)
-                states.append([s, dealer, player_usable])
+                episode.add_reward(0)
+                episode.add_state(State(s, dealer, player_usable))
             else:
-                rewards.append(-1)
+                episode.add_reward(-1)
                 done = True
         else:
-            rewards.append(0)
-            states.append([s, dealer, player_usable])
+            episode.add_reward(0)
+            episode.add_state(State(s, dealer, player_usable))
     if not done:
         bust = False
         while dealer < 17:
@@ -88,15 +121,15 @@ def generate_episode():
                 else:
                     bust = True
         if bust:
-            rewards.append(1)
+            episode.add_reward(1)
         else:
             if dealer > s:
-                rewards.append(-1)
+                episode.add_reward(-1)
             elif dealer < s:
-                rewards.append(1)
+                episode.add_reward(1)
             else:
-                rewards.append(0)
-    return states, rewards
+                episode.add_reward(0)
+    return episode
 
 
 def show_image(episode, b, title):
@@ -124,14 +157,13 @@ if __name__ == "__main__":
     usable_episode = {}
     unusable_episode = {}
     for _ in range(count):
-        states, rewards = generate_episode()
-        states = list(reversed(states))
-        rewards = list(reversed(rewards))
-
+        episode = generate_episode()
+        states = list(reversed(episode.states()))
+        rewards = list(reversed(episode.rewards()))
         g = 0.0
         for state, reward in zip(states, rewards):
             g += 0.9 * reward
-            key = '%d_%d_%d' % (state[0], state[1], state[2])
+            key = '%d_%d_%d' % (state.player_sum(), state.dealer_sum(), state.usable_ace())
             n = state_counts.get(key, 0)
             old = state_values.get(key, 0.0)
             state_values[key] = old + (g - old) / (n + 1)
