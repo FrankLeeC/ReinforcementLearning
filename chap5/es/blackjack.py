@@ -1,3 +1,28 @@
+'''
+MIT License
+
+Copyright (c) 2018 Frank Lee
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+'''
+
 # -*- coding: utf-8 -*-
 
 import numpy as np
@@ -13,9 +38,11 @@ HIT_ACTION = 1
 COUNT = np.zeros([10, 10, 2, 2])
 Q = np.zeros([10, 10, 2, 2])  # player's sum, dealer's sum, usable ace, action 
 
-# 第0表示nousable_ace,第1表示usable_ace
-# 第0表示STICK_ACTION, 第1表示HIT_ACTION
-POLICY = np.zeros([10, 10, 2, 2]) + 0.5  # initial propability. player's sum, dealer's sum, usable_ace, action 
+# 0: nousable_ace  1: usable_ace
+# 0: STICK_ACTION  1: HIT_ACTION
+# initialize probability. p(a|s) > 0 for all actions in state s
+# player's sum, dealer's sum, usable_ace, action 
+POLICY = np.zeros([10, 10, 2, 2]) + 0.5
 
 
 def random_state():
@@ -31,21 +58,29 @@ def random_state():
         return [int(r / 10) + 12, (r % 10) + 2, 0]
     r -= 100
     return [int(r / 10) + 12, (r % 10) + 2, 1]
-    
+
+def random_action():
+    return random.randint(0, 1)  
 
 def random_card():
     random.seed()
     return random.randint(1, 10)
 
 
-def dealer(showing):
+def dealer(showing, dealer_usable_ace):
     sum = showing
     while sum < 17:
         card = random_card()
-        if card == 1 and sum + card <= 21:
-            sum += 11
+        if card == 1:
+            if sum + 11 <= 21:
+                sum += 11
+            else:
+                sum += 1
         else:
             sum += card
+        if sum > 21:
+            if dealer_usable_ace:
+                sum -= 10
     return sum
 
 
@@ -74,6 +109,9 @@ class State:
         1: usable_ace
         '''
         return self.u
+
+    def disable_ace(self):
+        self.u = 0
 
 
 class Episode:
@@ -104,9 +142,13 @@ class Episode:
 
 def random_start_state():
     player_sum = random.randint(12, 21)
-    dealer_showing = random.randint(2, 11)
+    dealer_showing = random.randint(1, 10)
+    dealer_usable_ace = False
+    if dealer_showing == 1:
+        dealer_showing = 11
+        dealer_usable_ace = True
     usable_ace = random.randint(0, 1)
-    return State(player_sum, dealer_showing, usable_ace)
+    return State(player_sum, dealer_showing, usable_ace), dealer_usable_ace
 
 def get_action(state):
     '''
@@ -128,9 +170,8 @@ def generate_episode():
     '''
     global HIT_ACTION, STICK_ACTION
     episode = Episode()
-    state = random_start_state()
-    action = get_action(state)
-    # usable_ace = state.usable_ace()  # 不会改变
+    state, dealer_usable_ace = random_start_state()
+    action = random_action()
     next_state = State(state.player_sum(), state.dealer_showing(), state.usable_ace())
     while action == HIT_ACTION:
         episode.add_state(next_state)
@@ -138,15 +179,21 @@ def generate_episode():
         card = random_card()
         new_sum = next_state.player_sum() + card
         if new_sum > 21:  # burst
-            episode.add_reward(-1)
-            return episode
+            if next_state.usable_ace():
+                new_sum -= 10
+                next_state.disable_ace()
+                episode.add_reward(0)
+            else:
+                episode.add_reward(-1)
+                return episode
         else:
             episode.add_reward(0)
         next_state = State(new_sum, next_state.dealer_showing(), next_state.usable_ace())
-        action = get_action(next_state)
+        # action = get_action(next_state)
+        action = random_action()
     episode.add_state(next_state)
     episode.add_action(action)
-    dealer_sum = dealer(state.dealer_showing())
+    dealer_sum = dealer(state.dealer_showing(), dealer_usable_ace)
     if next_state.player_sum() > dealer_sum:
         episode.add_reward(1)
     elif next_state.player_sum() < dealer_sum:
@@ -177,7 +224,8 @@ def run():
         actions = episode.action()
         rewards = episode.reward()
         cache = set()
-        for i in range(l):
+        for j in range(l):
+            i = l - j - 1
             g = 0.9 * g + rewards[i]
             ps = states[i].player_sum()
             ds = states[i].dealer_showing()
@@ -212,7 +260,6 @@ def draw():
     for p in range(10):
         for d in range(10):
             nousable_action = 0.0
-            # print(POLICY[p][d][0][0] == 1.0)
             if POLICY[p][d][0][0] == 1.0:  # nousable_ace    stick_action
                 nousable_action = 1.0       # stick
             else:
