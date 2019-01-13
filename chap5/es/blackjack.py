@@ -30,6 +30,7 @@ import random
 import time
 import seaborn as sns
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 STICK_ACTION = 0
 HIT_ACTION = 1
@@ -40,48 +41,8 @@ Q = np.zeros([10, 10, 2, 2])  # player's sum, dealer's sum, usable ace, action
 
 # 0: nousable_ace  1: usable_ace
 # 0: STICK_ACTION  1: HIT_ACTION
-# initialize probability. p(a|s) > 0 for all actions in state s
 # player's sum, dealer's sum, usable_ace, action 
-POLICY = np.zeros([10, 10, 2, 2]) + 0.5
-
-
-def random_state():
-    '''
-    return [play's sum, dealer's showing, usable ace]
-    play's sum ranges in [12, 21]
-    dealer's sum ranges in [2, 11]
-    usable ace  0 no  1 yes
-    '''
-    random.seed()
-    r = random.randint(0, 199)
-    if r < 100:
-        return [int(r / 10) + 12, (r % 10) + 2, 0]
-    r -= 100
-    return [int(r / 10) + 12, (r % 10) + 2, 1]
-
-def random_action():
-    return random.randint(0, 1)  
-
-def random_card():
-    random.seed()
-    return random.randint(1, 10)
-
-
-def dealer(showing, dealer_usable_ace):
-    sum = showing
-    while sum < 17:
-        card = random_card()
-        if card == 1:
-            if sum + 11 <= 21:
-                sum += 11
-            else:
-                sum += 1
-        else:
-            sum += card
-        if sum > 21:
-            if dealer_usable_ace:
-                sum -= 10
-    return sum
+POLICY = np.zeros([10, 10, 2, 2])
 
 
 class State:
@@ -110,9 +71,6 @@ class State:
         '''
         return self.u
 
-    def disable_ace(self):
-        self.u = 0
-
 
 class Episode:
 
@@ -129,6 +87,9 @@ class Episode:
 
     def add_reward(self, reward):
         self.reward_list.append(reward)
+
+    def length(self):
+        return len(self.states_list)
         
     def states(self):
         return self.states_list
@@ -140,105 +101,7 @@ class Episode:
         return self.reward_list
 
 
-def random_start_state():
-    player_sum = random.randint(12, 21)
-    dealer_showing = random.randint(1, 10)
-    dealer_usable_ace = False
-    if dealer_showing == 1:
-        dealer_showing = 11
-        dealer_usable_ace = True
-    usable_ace = random.randint(0, 1)
-    return State(player_sum, dealer_showing, usable_ace), dealer_usable_ace
-
-def get_action(state):
-    '''
-    STICK_ACTION 0
-    HIT_ACTION   1
-    '''
-    global HIT_ACTION, STICK_ACTION
-    ps = state.player_sum() - 12
-    ds = state.dealer_showing() - 2
-    u = state.usable_ace()
-    p = POLICY[ps][ds][u]
-    if p[0] > p[1]:
-        return STICK_ACTION
-    return HIT_ACTION
-
-def generate_episode():
-    '''
-    return episode
-    '''
-    global HIT_ACTION, STICK_ACTION
-    episode = Episode()
-    state, dealer_usable_ace = random_start_state()
-    action = random_action()
-    next_state = State(state.player_sum(), state.dealer_showing(), state.usable_ace())
-    while action == HIT_ACTION:
-        episode.add_state(next_state)
-        episode.add_action(action)
-        card = random_card()
-        new_sum = next_state.player_sum() + card
-        if new_sum > 21:  # burst
-            if next_state.usable_ace():
-                new_sum -= 10
-                next_state.disable_ace()
-                episode.add_reward(0)
-            else:
-                episode.add_reward(-1)
-                return episode
-        else:
-            episode.add_reward(0)
-        next_state = State(new_sum, next_state.dealer_showing(), next_state.usable_ace())
-        # action = get_action(next_state)
-        action = random_action()
-    episode.add_state(next_state)
-    episode.add_action(action)
-    dealer_sum = dealer(state.dealer_showing(), dealer_usable_ace)
-    if next_state.player_sum() > dealer_sum:
-        episode.add_reward(1)
-    elif next_state.player_sum() < dealer_sum:
-        episode.add_reward(-1)
-    else:
-        episode.add_reward(0)
-    return episode
-
-def update_policy(player_sum, dealer_showing, usable_ace):
-    global POLICY, Q
-    ps = player_sum - 12
-    ds = dealer_showing - 2
-    if Q[ps][ds][usable_ace][0] > Q[ps][ds][usable_ace][1]:
-        POLICY[ps][ds][usable_ace][0] = 1.0
-        POLICY[ps][ds][usable_ace][1] = 0.0
-    else:
-        POLICY[ps][ds][usable_ace][1] = 1.0
-        POLICY[ps][ds][usable_ace][0] = 0.0
-
-def run():
-    global COUNT, Q
-    count = 300000
-    for _ in range(count):
-        episode = generate_episode()
-        l = len(episode.states())
-        g = 0.0
-        states = episode.states()
-        actions = episode.action()
-        rewards = episode.reward()
-        cache = set()
-        for j in range(l):
-            i = l - j - 1
-            g = 0.9 * g + rewards[i]
-            ps = states[i].player_sum()
-            ds = states[i].dealer_showing()
-            u = states[i].usable_ace()
-            key = '%d_%d_%d' % (ps, ds, u)
-            if key not in cache:
-                cache.add(key)
-                COUNT[ps-12][ds-2][u][actions[i]] += 1
-                Q[ps-12][ds-2][u][actions[i]] += (rewards[i] - Q[ps-12][ds-2][u][actions[i]]) / COUNT[ps-12][ds-2][u][actions[i]]
-                update_policy(ps, ds, u)
-
-
-def show_image(episode, b, title):
+def show_image(episode, title):
     sns.set()
     data = np.asarray(np.zeros((22, 12), dtype=float))
     for e in episode:
@@ -262,36 +125,155 @@ def draw():
             nousable_action = 0.0
             if POLICY[p][d][0][0] == 1.0:  # nousable_ace    stick_action
                 nousable_action = 1.0       # stick
-            else:
-                nousable_action = 0.0       # hit
-            nousable_ace_episode.append([p, d, int(nousable_action)])
+            nousable_ace_episode.append([p, d, nousable_action])
 
             usable_action = 0.0
             if POLICY[p][d][1][0] == 1.0:
                 usable_action = 1.0        # stick
+            usable_ace_episode.append([p, d, usable_action])
+    show_image(nousable_ace_episode, 'nousable_ace')
+    show_image(usable_ace_episode, 'usable_ace')
+
+
+def random_card():
+    random.seed()
+    c = random.randint(1, 13)
+    return min(c, 10)
+
+def init_player_state():
+    '''
+    initialize player state
+    return sum, usable ace
+    '''
+    s = 0
+    u = 0
+    while s < 12:
+        c = random_card()
+        if c == 1:
+            if s + 11 > 21:
+                s += 1
             else:
-                usable_action = 0.0        # hit
-            usable_ace_episode.append([p, d, int(usable_action)])
-    show_image(nousable_ace_episode, False, 'nousable_ace')
-    show_image(usable_ace_episode, True, 'usable_ace')
+                u = 1
+                s += 11
+        else:
+            s += c
+    return s, u
+
+def init_dealer_state():
+    '''
+    initialize dealer state
+    return dealer_showing, dealer usable ace
+    '''
+    s = random_card()
+    u = 0
+    if s == 1:
+        s = 11
+        u = 1
+    return s, u
+
+def init_start_state():
+    '''
+    initialize start state
+    '''
+    p, u = init_player_state()
+    d, du = init_dealer_state()
+    return State(p, d, u), du
+
+def random_action(state):
+    return random.randint(0, 1)
+
+def policy_action(state):
+    ps, d, u = state.player_sum(), state.dealer_showing(), state.usable_ace()
+    q = Q[ps-12][d-2][u]
+    if q[0] > q[1]:
+        return 0
+    elif q[0] == q[1]:
+        return np.random.choice([0, 1])
+    return 1
 
 
-def printout():
-    i = 0
-    for p in range(10):
-        for d in range(10):
+def process():
+    episode = Episode()
+    state, du = init_start_state()
+    action = random_action(state)
+    episode.add_state(state)
+    episode.add_action(action)
+    next_state = State(state.player_sum(), state.dealer_showing(), state.usable_ace())
+    # player's turn
+    while True:
+        if action == STICK_ACTION:
+            break
+        new_sum = 0
+        new_usable_ace = next_state.usable_ace()
+        card = random_card()
+        if card == 1:
+            s = next_state.player_sum()
+            new_sum = s
+            if s + 11 > 21:
+                new_sum += 1
+            else:
+                new_sum += 11
+                new_usable_ace = 1
+        else:
+            new_sum = next_state.player_sum() + card
+        if new_sum > 21:
+            if new_usable_ace == 0:
+                return episode, -1
+            new_usable_ace = 0
+            new_sum -= 10
+        episode.add_reward(0)
+        next_state = State(new_sum, next_state.dealer_showing(), new_usable_ace)
+        action = policy_action(next_state)
+        episode.add_state(next_state)
+        episode.add_action(action)
+
+    # dealder's turn
+    dealer_sum = state.dealer_showing()
+    while True:
+        if dealer_sum >= 17:
+            break
+        card = random_card()
+        if card == 1:
+            if dealer_sum + 11 > 21:
+                dealer_sum += 1
+            else:
+                dealer_sum += 11
+                du = 1
+        else:
+            dealer_sum += card
+        if dealer_sum > 21:
+            if du == 1:
+                dealer_sum -= 10
+                du = 0
+            else:
+                return episode, 1
+    if next_state.player_sum() > dealer_sum:
+        return episode, 1
+    elif next_state.player_sum() == dealer_sum:
+        return episode, 0
+    else:
+        return episode, -1
+
+def run():
+    global POLICY, Q, COUNT
+    for _ in tqdm(range(500000)):
+        episode, reward = process()
+        states = episode.states()
+        actions = episode.action()
+        g = 0.0
+        for i in range(episode.length()):
+            s = states[i]
+            a = actions[i]
+            g = 0.9 * g + reward
+            COUNT[s.player_sum() - 12][s.dealer_showing() - 2][s.usable_ace()][a] += 1
+            Q[s.player_sum() - 12][s.dealer_showing() - 2][s.usable_ace()][a] += g
+    p = Q / COUNT
+    for i in range(10):
+        for j in range(10):
             for u in range(2):
-                for a in range(2):
-                    k = '%d_%d_%d_%d' % (p+12, d+2, u, a)
-                    v = POLICY[p][d][u][a]
-                    i += 1
-                    print(k, ' = ', v) 
-                    if i % 2 == 0:
-                        print('-----------------')
+                POLICY[i][j][u][np.argmax(p[i][j][u])] = 1.0
+
 
 if __name__ == "__main__":
     run()
-    # printout()
     draw()
-
-    
