@@ -255,7 +255,6 @@ def get_ratio(p, a):
 
 def run(counts):
     global POLICY, Q, COUNT
-    c = 0
     ratios = list()
     gs = list()
     for _ in range(counts):
