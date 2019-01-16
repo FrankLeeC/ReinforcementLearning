@@ -38,7 +38,7 @@ def target_policy(play_sum):
 
 def random_card():
     random.seed()
-    return random.randint(1, 10)
+    return min(random.randint(1, 13), 10)
 
 
 def dealer(showing):

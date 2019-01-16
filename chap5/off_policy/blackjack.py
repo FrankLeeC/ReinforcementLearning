@@ -44,6 +44,8 @@ Q = np.zeros([10, 10, 2, 2])  # player's sum, dealer's sum, usable ace, action
 # player's sum, dealer's sum, usable_ace, action 
 POLICY = np.zeros([10, 10, 2, 2])
 
+def reset():
+    Q = np.zeros([10, 10, 2, 2])  # player's sum, dealer's sum, usable ace, action
 
 class State:
 
@@ -116,23 +118,15 @@ def show_image(episode, title):
     plt.close()
 
 
-def draw():
-    global POLICY
-    usable_ace_episode = []  # 1
-    nousable_ace_episode = []  # 0
-    for p in range(10):
-        for d in range(10):
-            nousable_action = 0.0
-            if POLICY[p][d][0][0] == 1.0:  # nousable_ace    stick_action
-                nousable_action = 1.0       # stick
-            nousable_ace_episode.append([p, d, nousable_action])
-
-            usable_action = 0.0
-            if POLICY[p][d][1][0] == 1.0:
-                usable_action = 1.0        # stick
-            usable_ace_episode.append([p, d, usable_action])
-    show_image(nousable_ace_episode, 'nousable_ace')
-    show_image(usable_ace_episode, 'usable_ace')
+def draw(x, y, y2, title):
+    plt.plot(x, y, color='red', label='weighted importance sampling')
+    plt.plot(x, y2, color='black', label='ordinary importance sampling')
+    plt.xlabel('Episodes (log scale)')
+    plt.ylabel('Mean square error')
+    plt.xscale('log')
+    plt.legend()
+    plt.savefig(title + '.png')
+    plt.close()
 
 
 def random_card():
@@ -175,27 +169,20 @@ def init_start_state():
     '''
     initialize start state
     '''
-    p, u = init_player_state()
-    d, du = init_dealer_state()
-    return State(p, d, u), du
+    return State(13, 2, 1), False
 
-def random_action(state):
+def behavior_action(state):
     return random.randint(0, 1)
 
-def policy_action(state):
-    ps, d, u = state.player_sum(), state.dealer_showing(), state.usable_ace()
-    q = Q[ps-12][d-2][u]
-    if q[0] > q[1]:
-        return 0
-    elif q[0] == q[1]:
-        return np.random.choice([0, 1])
-    return 1
-
+def target_action(state):
+    if state.player_sum() < 20:
+        return HIT_ACTION
+    return STICK_ACTION
 
 def process():
     episode = Episode()
     state, du = init_start_state()
-    action = random_action(state)
+    action = behavior_action(state)
     episode.add_state(state)
     episode.add_action(action)
     next_state = State(state.player_sum(), state.dealer_showing(), state.usable_ace())
@@ -224,7 +211,7 @@ def process():
             new_sum -= 10
         episode.add_reward(0)
         next_state = State(new_sum, next_state.dealer_showing(), new_usable_ace)
-        action = policy_action(next_state)
+        action = behavior_action(next_state)
         episode.add_state(next_state)
         episode.add_action(action)
 
@@ -257,29 +244,65 @@ def process():
         episode.add_reward(-1)
     return episode
 
-def run():
+def get_ratio(p, a):
+    if p < 20:
+        if a == HIT_ACTION:
+            return 1.0 / 0.5
+        return 0.0 / 0.5
+    if a == HIT_ACTION:
+        return 0.0 / 0.5
+    return 1.0 / 0.5
+
+def run(counts):
     global POLICY, Q, COUNT
-    for _ in tqdm(range(500000)):
+    c = 0
+    ratios = list()
+    gs = list()
+    for _ in range(counts):
         episode = process()
         states = episode.states()
         actions = episode.action()
         rewards = episode.reward()
         g = 0.0
+        numerator = 1.0
+        denominator = 1.0
         for j in range(episode.length()):
             i = episode.length() - j - 1
             s = states[i]
             a = actions[i]
             r = rewards[i]
             g = 0.9 * g + r
-            COUNT[s.player_sum() - 12][s.dealer_showing() - 2][s.usable_ace()][a] += 1
-            Q[s.player_sum() - 12][s.dealer_showing() - 2][s.usable_ace()][a] += g
-    p = Q / COUNT
-    for i in range(10):
-        for j in range(10):
-            for u in range(2):
-                POLICY[i][j][u][np.argmax(p[i][j][u])] = 1.0
-
+            if a == target_action(s):
+                denominator *= 0.5
+            else:
+                numerator = 0.0
+                break
+            r = get_ratio(s.player_sum(), a)
+        gs.append(g)
+        ratios.append(numerator/denominator)
+    ratios = np.asarray(ratios)
+    gs = np.asanyarray(gs)
+    weighted_returns = np.add.accumulate(ratios * gs)
+    ratios = np.add.accumulate(ratios)
+    ordinary_sampling = weighted_returns / np.arange(1, counts+1, 1)
+    weighted_sampling = np.zeros_like(ordinary_sampling)
+    for i, r in enumerate(ratios):
+        if r == 0.0:
+            weighted_sampling[i] = 0.0
+        else:
+            weighted_sampling[i] = weighted_returns[i] / r
+    return np.reshape(weighted_sampling, (1, counts)), np.reshape(ordinary_sampling, (1, counts))
+    
 
 if __name__ == "__main__":
-    run()
-    draw()
+    count = 100
+    episodes = 10000
+    weighted_variace = np.zeros((1, episodes))
+    ordinary_variace = np.zeros((1, episodes))
+    for i in tqdm(range(count)):
+        r1, r2 = run(episodes)
+        weighted_variace += np.power(r1[0]-(-0.27726), 2)
+        ordinary_variace += np.power(r2[0]-(-0.27726), 2)
+    weighted_variace /= 100
+    ordinary_variace /= 100
+    draw(np.arange(0, episodes, 1), weighted_variace[0], ordinary_variace[0], 'off_policy_importance_sampling')
