@@ -243,7 +243,6 @@ def get_ratio(p, a):
     return 1.0 / 0.5
 
 def run(counts):
-    global POLICY, Q, COUNT
     ratios = list()
     gs = list()
     for _ in range(counts):
