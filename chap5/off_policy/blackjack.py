@@ -36,17 +36,6 @@ STICK_ACTION = 0
 HIT_ACTION = 1
 
 
-COUNT = np.zeros([10, 10, 2, 2])
-Q = np.zeros([10, 10, 2, 2])  # player's sum, dealer's sum, usable ace, action 
-
-# 0: nousable_ace  1: usable_ace
-# 0: STICK_ACTION  1: HIT_ACTION
-# player's sum, dealer's sum, usable_ace, action 
-POLICY = np.zeros([10, 10, 2, 2])
-
-def reset():
-    Q = np.zeros([10, 10, 2, 2])  # player's sum, dealer's sum, usable ace, action
-
 class State:
 
     def __init__(self, play_sum, dealer_showing, usable_ace):
