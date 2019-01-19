@@ -29,11 +29,30 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 
-def predict(value, alpha=0.1):
+def mc_predict(value, alpha):
+    s = 3
+    g = 0.0
+    states = [s]
+    while s != 0 and s != 6:
+        a = -1 
+        if np.random.binomial(1, 0.5) == 1.0:
+            a = 1
+        ns = s + a
+        states.append(ns)
+        r = 0.0
+        if ns == 6:
+            r = 1.0
+        g = 1.0 * g + r
+        s = ns
+    for s in states:
+        value[s] += alpha*(g - value[s])
+    return value
+
+def td_predict(value, alpha):
     s = 3
     while s != 0 and s != 6:
         a = -1 
-        if np.random.uniform(0, 1) >= 0.5:
+        if np.random.binomial(1, 0.5) == 1.0:
             a = 1
         ns = s + a
         r = 0.0
@@ -41,7 +60,7 @@ def predict(value, alpha=0.1):
         s = ns
     return value
 
-def run_err(alpha):
+def mc_err(alpha):
     count = 101
     true_value = np.array([0, 1/6, 2/6, 3/6, 4/6, 5/6, 1.0])    
     value = np.zeros(7) + 0.5
@@ -49,11 +68,23 @@ def run_err(alpha):
     value[0] = 0.0
     errs = list()
     for _ in range(count):
-        value = predict(value, alpha)
+        value = mc_predict(value, alpha)
         errs.append(np.mean(np.power(value - true_value, 2)))
     return errs
 
-def run_value():
+def td_err(alpha):
+    count = 101
+    true_value = np.array([0, 1/6, 2/6, 3/6, 4/6, 5/6, 1.0])    
+    value = np.zeros(7) + 0.5
+    value[6] = 1.0
+    value[0] = 0.0
+    errs = list()
+    for _ in range(count):
+        value = td_predict(value, alpha)
+        errs.append(np.mean(np.power(value - true_value, 2)))
+    return errs
+
+def mc_value():
     count = 101
     value = np.zeros(7) + 0.5
     value[6] = 1.0
@@ -63,17 +94,33 @@ def run_value():
     for i in range(count):
         if i in episodes:
             values.append(copy.deepcopy(value[1:6]))
-        value = predict(value, 0.1)
+        value = mc_predict(value, 0.1)
+    return values
+
+def td_value():
+    count = 101
+    value = np.zeros(7) + 0.5
+    value[6] = 1.0
+    value[0] = 0.0
+    values = list()
+    episodes = [0, 1, 10 ,100]
+    for i in range(count):
+        if i in episodes:
+            values.append(copy.deepcopy(value[1:6]))
+        value = td_predict(value, 0.1)
     return values
 
 
 def image_err(x, y, l):
     plt.subplot(1, 1, 1)
     for i, e in enumerate(y):
-        plt.plot(x, e, label=l[i])
+        if i > 2:
+            plt.plot(x, e, label=l[i], linestyle='dashdot')
+        else:
+            plt.plot(x, e, label=l[i])
     plt.xlabel('walks/episodes')
     plt.ylabel('averaged error')
-    plt.legend(loc='upper left', frameon=False)
+    plt.legend(loc='upper right', frameon=False)
     plt.savefig('./walk_error.png')
     plt.close()
 
@@ -88,10 +135,10 @@ def image_value(x, y, l):
     plt.close()
 
 def main():
-    e = [run_err(0.05), run_err(0.1), run_err(0.15)]
-    v = run_value()
+    e = [td_err(0.05), td_err(0.1), td_err(0.15), mc_err(0.01), mc_err(0.02), mc_err(0.03)]
+    v = td_value()
     v.append(np.array([1/6, 2/6, 3/6, 4/6, 5/6]))
-    image_err(range(101), e, ['alpha=0.05', 'alpha=0.1', 'alpha=0.15'])
+    image_err(range(101), e, ['td_alpha=0.05', 'td_alpha=0.1', 'td_alpha=0.15', 'mc_alpha=0.01', 'mc_alpha=0.02', 'mc_alpha=0.03'])
     image_value(['A', 'B', 'C', 'D', 'E'], v, ['0', '1', '10', '100', 'true'])
     
 if __name__ == "__main__":
