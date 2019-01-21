@@ -100,6 +100,26 @@ def image(x, y):
     plt.savefig('./windy_grid_world.png')
     plt.close()
 
+def action_str(a):
+    if a == UP:
+        return '⬆️'
+    if a == RIGHT:
+        return '➡️'
+    if a == DOWN:
+        return '⬇️'
+    return '⬅️'
+
+def output():
+    global Q
+    s = ''
+    for i in range(7):
+        for j in range(10):
+            a = action_str(np.argmax(Q[i][j]))
+            s += ' ' + a
+        s += '\n'
+    print(s)
+            
+
 def main():
     count = 170
     steps = []
@@ -107,6 +127,7 @@ def main():
         steps.append(generate_episode())
     steps = np.add.accumulate(steps)
     image(steps, range(1, count+1))
+    output()
 
 if __name__ == "__main__":
     main()
