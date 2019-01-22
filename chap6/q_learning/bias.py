@@ -49,7 +49,7 @@ def image(x, y, l):
     plt.xlabel('episode')
     plt.ylabel('left / time step')
     plt.legend(loc='upper right')
-    plt.savefig('./bias.png')
+    plt.savefig('./double_q.png')
     plt.close()
 
 def step(state, action):
