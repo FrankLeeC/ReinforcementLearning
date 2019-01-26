@@ -58,7 +58,8 @@ def get_reward(state):
 
 
 def random_start():
-    return 10
+    # return 10
+    return random.randint(LEFT_STATE+1, RIGHT_STATE-1)
 
 
 def is_end(state):
