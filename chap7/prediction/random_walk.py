@@ -107,15 +107,12 @@ def n_step_td(value, alpha, n):
 
 
 def run(n, alpha, episodes):
-    # count = 100
     errs = 0.0
-    # for _ in range(count):
     value = np.zeros(RIGHT_STATE+1)
     for _ in range(episodes):
         n_step_td(value, alpha, n)
         errs += np.sqrt(np.sum((value - TRUE_VALUE) ** 2) / (RIGHT_STATE - 1))
     return errs
-    # return errs / (count*episodes)
 
 
 def main():
@@ -127,11 +124,8 @@ def main():
     episodes = 10
     for _ in tqdm(range(count)):
         for i, n in enumerate(steps):
-            # errs = np.zeros_like(alpha)
             for j, a in enumerate(alpha):
-                # errs[j] = run(n, a)
                 errors[i][j] += run(n, a, episodes)
-            # errors.append(errs)
     errors /= count*episodes
     image(alpha, errors, labels)
 
