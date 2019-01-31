@@ -22,12 +22,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 '''
 
-# -*- coding: utf-8 -*-
+# -*- coding:utf-8 -*-
 
-import random
 import numpy as np
-from tqdm import tqdm
 import matplotlib.pyplot as plt
+import random
+from tqdm import tqdm
+import math
 
 HEIGHT = 6
 WIDTH = 9
@@ -37,41 +38,48 @@ RIGHT_ACTION = 1
 DOWN_ACTION = 2
 LEFT_ACTION = 3
 
-START_STATE = [2, 0]
+START_STATE = [5, 3]
 GOAL_STATE = [0, 8]
 
 Q = np.zeros([HEIGHT, WIDTH, 4])
 MODEL = dict()
 
+CHANGED = False
+
 def image(x, y, l):
     plt.subplot(1, 1, 1)
     for i, e in enumerate(y):
         plt.plot(x, e, label=l[i])
-    plt.xlabel('episodes')
-    plt.ylabel('steps')
+    plt.xlabel('time steps')
+    plt.ylabel('cumulative rewards')
     plt.legend(loc='upper right')
-    plt.savefig('./maze.png')
+    plt.savefig('./blocking_maze.png')
     plt.close()
 
 
 def reset():
-    global Q, MODEL
+    global Q, MODEL, CHANGED
     Q = np.zeros([HEIGHT, WIDTH, 4])
     MODEL = dict()
-    # random.seed(47)
-    # np.random.seed(79)
+    CHANGED = False
+
+
+def change():
+    global CHANGED
+    CHANGED = True
 
 
 def is_forbidden(state):
+    global CHANGED
     x, y = state
     if x < 0 or x > 5 or y < 0 or y > 8:
         return True
-    if x in [0, 1, 2] and y == 7:
-        return True
-    if x in [1, 2, 3] and y == 2:
-        return True
-    if x == 4 and y == 5:
-        return True
+    if not CHANGED:
+        if x == 3 and y < 8:
+            return True
+    else:
+        if x == 3 and y > 0:
+            return True
     return False
 
 def step(state, action):
@@ -102,63 +110,65 @@ def get_action(state, epsilon):
         return random.randint(0, 3)
     return np.random.choice([a for a, v in enumerate(Q[state[0]][state[1]]) if v == np.max(Q[state[0]][state[1]])])
 
-def episode(count, repeats):
+def episode(count, repeats, plus=False):
     global Q, MODEL
     state = START_STATE
     epsilon = 0.1
     gamma = 0.95
-    alpha = 0.1
-
+    alpha = 0.7
+    k = 0.0001
     steps = 0
-    data = []
-    trajectory = dict()
+    trajectory = set()
+    rewards = list()
     while True:
-        if len(data) == count:
+        if steps == 1000:
+            change()
+        if steps == count:
             break
         if state == GOAL_STATE:
-            data.append(steps)
-            steps = 0
             state = START_STATE
             continue
         if np.random.binomial(1, epsilon) == 1:
             action = random.randint(0, 3)
-        else:
-            action = np.random.choice([a for a, v in enumerate(Q[state[0]][state[1]]) if v == np.max(Q[state[0]][state[1]])])
-        tmp = trajectory.get('%d_%d' % (state[0], state[1]), list())
-        tmp.append(action)
-        trajectory['%d_%d' % (state[0], state[1])] = tmp
+        else:                                 
+            action = np.random.choice([a for a, v in enumerate(Q[state[0]][state[1]]) if v == np.max(Q[state[0]][state[1]])]) 
+        trajectory.add('%d_%d_%d' % (state[0], state[1], action))
         new_state = step(state, action)
         reward = get_reward(new_state)
         ma = np.random.choice([a for a, v in enumerate(Q[new_state[0]][new_state[1]]) if v == np.max(Q[new_state[0]][new_state[1]])])
-        if state != GOAL_STATE:
-            Q[state[0]][state[1]][action] += alpha * (reward + gamma * Q[new_state[0]][new_state[1]][ma] - Q[state[0]][state[1]][action])
-            MODEL['%d_%d_%d'%(state[0], state[1], action)] = [reward, new_state]
+        rewards.append(reward)        
+        Q[state[0]][state[1]][action] += alpha * (reward + gamma * Q[new_state[0]][new_state[1]][ma] - Q[state[0]][state[1]][action])
+        for i in range(4):
+            if i != action and ('%d_%d_%d'%(state[0], state[1], i) not in MODEL.keys()):
+                trajectory.add('%d_%d_%d' % (state[0], state[1], i))
+                MODEL['%d_%d_%d'%(state[0], state[1], i)] = [0.0, state, 0]
+        MODEL['%d_%d_%d'%(state[0], state[1], action)] = [reward, new_state, steps]
         for _ in range(repeats):
-            k = list(trajectory.keys())
-            s = k[np.random.choice(len(k))]
-            # s = np.random.choice(trajectory.keys())
-            ss = str.split(s, '_')
-            state = [int(ss[0]), int(ss[1])]
-            action = np.random.choice(trajectory[s])
-            reward, next_state = MODEL['%d_%d_%d'%(state[0], state[1], action)]
-            ma = np.random.choice([a for a, v in enumerate(Q[new_state[0]][new_state[1]]) if v == np.max(Q[new_state[0]][new_state[1]])])
-            Q[state[0]][state[1]][action] += alpha * (reward + gamma * Q[next_state[0]][next_state[1]][ma] - Q[state[0]][state[1]][action])
+            s = np.random.choice(list(trajectory))
+            ss = str.split(s, '_', -1)
+            _state = [int(ss[0]), int(ss[1])]
+            _action = int(ss[2])
+            r, next_state, _t = MODEL['%d_%d_%d'%(_state[0], _state[1], _action)]
+            _ma = np.random.choice([a for a, v in enumerate(Q[next_state[0]][next_state[1]]) if v == np.max(Q[next_state[0]][next_state[1]])])
+            upd = 0.0
+            if plus:
+                upd = k * math.sqrt(steps - _t)
+            Q[_state[0]][_state[1]][_action] += alpha * (r + upd + gamma * Q[next_state[0]][next_state[1]][_ma] - Q[_state[0]][_state[1]][_action])
         state = new_state
         steps += 1
-    return data
+    return rewards
 
 def run():
-    run = 50
-    data = np.zeros([3, 50])
+    run = 20
+    count = 3000
+    repeats = 20
+    data = np.zeros([2, count])
     for _ in tqdm(range(run)):
-        d = []
-        repeats = [0, 5, 50]
-        count = 50
-        for i in range(len(repeats)):
-            d.append(episode(count, repeats[i]))
-            reset()
-        data += np.array(d)
-    image(np.arange(count) + 1, data/run, ['n=0', 'n=5', 'n=50'])
+        data[0] += np.add.accumulate(episode(count, repeats, False))
+        reset()
+        data[1] += np.add.accumulate(episode(count, repeats, True))
+        reset()
+    image(np.arange(count) + 1, data/run, ['dyna-q', 'dyna-q+'])
 
 
 if __name__ == "__main__":
