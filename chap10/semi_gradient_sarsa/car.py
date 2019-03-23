@@ -123,7 +123,6 @@ def episode(alpha):
 def run():
     count = 10
     alpha = [0.1/num, 0.2/num, 0.5/num]
-    # alpha = [0.1/num]
     episodes = 500
     steps = np.zeros((len(alpha), episodes))
     for _ in tqdm(range(count)):

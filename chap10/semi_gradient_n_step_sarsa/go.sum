@@ -1,0 +1,4 @@
+github.com/cpmech/gosl v1.1.0 h1:DDZqR/wvYp65P+busRIpb4DQr7KKDmYTw+f26DZL1eY=
+github.com/cpmech/gosl v1.1.0/go.mod h1:arn/jy2eYwkioG2eNbAW60SdPbJzNaHbqKmJYDnCpfs=
+github.com/schollz/progressbar v1.0.0 h1:gbyFReLHDkZo8mxy/dLWMr+Mpb1MokGJ1FqCiqacjZM=
+github.com/schollz/progressbar v1.0.0/go.mod h1:/l9I7PC3L3erOuz54ghIRKUEFcosiWfLvJv+Eq26UMs=
