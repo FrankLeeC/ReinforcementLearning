@@ -193,27 +193,20 @@ func run() {
 func image(episodes int, data [][]float64, labels []string, colors []string) {
 	// data
 	x := utl.LinSpace(0.0, float64(episodes), episodes)
-
 	// clear figure
 	plt.Reset(false, nil)
-
 	for i, e := range data {
 		plt.Plot(x, e, &plt.A{C: colors[i], L: labels[i]})
 	}
-
 	l := make([]*plt.A, 0)
 	for i, e := range labels {
 		l = append(l, &plt.A{C: colors[i], L: e})
 	}
-
 	plt.LegendX(l, nil)
-
 	limits := make([]float64, 0, 4)
 	limits = append(limits, 0.0, 500.0, 100.0, 1000.0)
 	plt.AxisLims(limits)
-
 	plt.SetLabels("episodes", "steps per episode", nil)
-
 	plt.Save("./", "steps")
 }
 
